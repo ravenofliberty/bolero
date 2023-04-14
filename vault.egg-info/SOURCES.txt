@@ -1,7 +1,0 @@
-README.md
-setup.cfg
-setup.py
-vault.egg-info/PKG-INFO
-vault.egg-info/SOURCES.txt
-vault.egg-info/dependency_links.txt
-vault.egg-info/top_level.txt

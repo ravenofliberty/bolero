@@ -1,7 +1,17 @@
 README.md
 setup.cfg
 setup.py
+apps/__init__.py
+apps/bolero_dashboard.py
 bolero.egg-info/PKG-INFO
 bolero.egg-info/SOURCES.txt
 bolero.egg-info/dependency_links.txt
 bolero.egg-info/top_level.txt
+persistence/__init__.py
+persistence/mongo.py
+words/__init__.py
+words/adjective.py
+words/noun.py
+words/tags.py
+words/verb.py
+words/word.py
