@@ -9,7 +9,7 @@ from enum import Enum
 import numpy as np
 import pandas as pd
 
-from words.word_metadata import Tags, Gender, Words
+from words.word_metadata import Tags, Gender, Words, VerbForms
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +54,12 @@ class PersistenceManager:
     # Pulling data
     ###############
     def pull_data(self, word):
+        logger.info(f"Data for {word=} pulled")
         data = list(self.client.bolero_data.find({"word": ignore_case(word)}))
         if len(data) != 0:
             assert len(data) == 1, f"Found multiple data entries for word {word}: {data}"
             doc = data[0]
-            for key in ["word", "meaning", "gender", "cls", "example", "tags", "see_also", "practice_data"]:
+            for key in ["word", "meaning", "gender", "cls", "example", "tags", "see_also", "practice_data", "verb_forms"]:
                 assert key in doc.keys(), f"{key=} is missing from {doc=}"
             return data[0]
         else:
@@ -67,15 +68,15 @@ class PersistenceManager:
 
     def pull_meaning(self, word, data=None):
         data = data or self.pull_data(word)
-        return Words[data.get("meaning", None)]
+        return data.get("meaning", None)
 
     def pull_gender(self, word, data=None):
         data = data or self.pull_data(word)
-        return Gender[data.get("gender", None)]
+        return Gender[data.get("gender", "NA")]
 
     def pull_cls(self, word, data=None):
         data = data or self.pull_data(word)
-        return data.get("cls", None)
+        return Words[data.get("cls")]
 
     def pull_example(self, word, data=None):
         data = data or self.pull_data(word)
@@ -83,16 +84,22 @@ class PersistenceManager:
 
     def pull_tags(self, word, data=None):
         data = data or self.pull_data(word)
-        tags = data.get("tags", None)
+        tags = data.get("tags", [])
         return [Tags[tag] for tag in tags]
 
     def pull_see_also(self, word, data=None):
         data = data or self.pull_data(word)
-        return data.get("see_also", None)
+        return data.get("see_also", [])
 
     def pull_practice_data(self, word, data=None):
         data = data or self.pull_data(word)
         return data.get("practice_data", None)
+
+    def pull_verb_forms(self, word, data=None):
+        data = data or self.pull_data(word)
+        cls = self.pull_cls(word=word, data=data)
+        assert cls == Words.Verb, f"Verb forms are only available for verbs, not {cls}"
+        return VerbForms(data.get("verb_forms", {person: None for person in VerbForms.get_persons()}))
 
     ###############
     # Updating data
@@ -123,16 +130,22 @@ class PersistenceManager:
     def update_practice_data(self, word, practice_data: dict):
         self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"practice_data": practice_data}}, upsert=True)
 
+    def update_verb_forms(self, word, forms: dict):
+        """ Verb only """
+        cls = self.pull_cls(word=word)
+        assert cls == Words.Verb, f"You can only update forms for Verbs, not {cls}"
+        self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"verb_forms": forms}}, upsert=True)
+
     def update_all(self, json):
         """ PersistenceManager.update_all(Word.to_json()) """
-        for key in ["word", "meaning", "gender", "example", "tags", "see_also", "practice_data"]:
+        for key in ["word", "meaning", "gender", "example", "tags", "see_also", "practice_data", "verb_forms"]:
             assert key in json.keys(), f"{key=} is missing from {json=}"
 
         word = json["word"]
         if self.pull_data(word) is None:
             self.client.bolero_data.insert_one({
                 "word": word,
-                **{k: None for k in ["meaning", "gender", "example", "tags", "see_also", "practice_data"]}
+                **{k: None for k in ["meaning", "gender", "example", "tags", "see_also", "practice_data", "verb_forms"]}
             })
         self.update_meaning(word, json["meaning"])
         self.update_gender(word, json["gender"])
@@ -141,3 +154,4 @@ class PersistenceManager:
         self.update_tags(word, json["tags"])
         self.update_see_also(word, json["see_also"])
         self.update_practice_data(word, json["practice_data"])
+        self.update_verb_forms(word, json["verb_forms"])

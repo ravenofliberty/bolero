@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 from persistence.mongo import PersistenceManager
-from words.word_metadata import Tags, Gender, IndefiniteArticle, DefinitieArticle, Words
+from words.word_metadata import Tags, Gender, IndefiniteArticle, DefiniteArticle, Words, VerbForms
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,13 @@ class Word:
             tags: List[Tags] = [],
             see_also: List[str] = [],  # List of other Words
             practice_data: Dict = {},
+            verb_forms: VerbForms = None,
+            offline_mode=True,
     ):
         self.word = word
 
         self.persistence_manager = PersistenceManager()
-        data = self.persistence_manager.pull_data(word)
+        data = self.persistence_manager.pull_data(word) if not offline_mode else None
         self.meaning = meaning or self.persistence_manager.pull_meaning(word, data)
         self.gender = gender or self.persistence_manager.pull_gender(word, data)
         self.cls = cls or self.persistence_manager.pull_cls(word, data)
@@ -42,6 +44,7 @@ class Word:
         self.tags = tags or self.persistence_manager.pull_tags(word, data)
         self.see_also = see_also or self.persistence_manager.pull_see_also(word, data)
         self.practice_data = practice_data or self.persistence_manager.pull_practice_data(word, data)
+        self.verb_forms = verb_forms or self.persistence_manager.pull_verb_forms(word, data)
 
     def to_json(self):
         res = {}
@@ -57,6 +60,8 @@ class Word:
     def from_json(cls, _json):
         """ PersistenceManager.pull_data() """
         json = {k: v for k, v in _json.items()} # copy
+        if json.get("verb_forms", None) is not None:
+            json["verb_forms"] = VerbForms(**json["verb_forms"])
         json["gender"] = Gender[json["gender"]]
         json["tags"] = [Tags[t] for t in json["tags"]]
 

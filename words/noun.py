@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 from persistence.mongo import PersistenceManager
-from words.word_metadata import Tags, Gender, IndefiniteArticle, DefinitieArticle, ARTICLE_MAPPING_NOMINATIVE
+from words.word_metadata import Tags, Gender, IndefiniteArticle, DefiniteArticle, ARTICLE_MAPPING_NOMINATIVE
 from words.word import Word
 
 logger = logging.getLogger(__name__)

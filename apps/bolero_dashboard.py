@@ -43,7 +43,13 @@ if __name__ == "__main__":
         del doc["example"]
 
     data_df = pd.DataFrame(data)
-    st.dataframe(data_df[[c for c in data_df.columns if c != "practice_data"]])
+    overview_df = data_df[[c for c in data_df.columns if c not in ["practice_data"]]]
+    overview_df["verb_forms"] = overview_df["verb_forms"].apply(lambda x: ", ".join([v for k, v in x.items()]) if all(list(x.values())) else "---")
+    overview_df["tags"] = overview_df["tags"].apply(lambda x: [v for v in x if v != "NA"] if any([v!="NA" for v in x]) else "---")
+    overview_df["see_also"] = overview_df["see_also"].apply(lambda x: [v for v in x if v != "NA"] if any([v != "NA" for v in x]) else "---")
+
+    cols_overview = st.columns([0.1, 5, 0.1])
+    cols_overview[1].dataframe(overview_df[[c for c in overview_df.columns if c != "verb_forms"] + ["verb_forms"]])
 
     st.subheader(f"Performance Report")
     practice_df = pd.DataFrame(data_df.set_index('word')['practice_data'].to_dict()).T
@@ -83,14 +89,13 @@ if __name__ == "__main__":
     count = 0
     for cls in Words.__members__.keys():
         _stats_df = stats_df[stats_df['cls'] == cls].sum()
-        total = _stats_df['total_to_eng'] + _stats_df['total_to_ger']
         sizes = [
             _stats_df['right_to_eng'],
             _stats_df['fail_to_eng'],
             _stats_df['right_to_ger'],
             _stats_df['fail_to_ger'],
         ]
-        fig1, ax1 = plt.subplots(figsize=(4,4))
+        fig1, ax1 = plt.subplots(figsize=(5,5))
         ax1.title.set_text(cls)
         ax1.pie(sizes, explode=explode, labels=labels, autopct="%1.1f%%", shadow=False, startangle=90, colors=colors)
         ax1.axis("equal")
@@ -129,7 +134,7 @@ if __name__ == "__main__":
     col2.line_chart(pd.DataFrame(by_date_to_eng).T)
 
     st.header("Practice section")
-    fix_seed = st.number_input("Fix seed", 100)
+    fix_seed = st.number_input("Fix seed", value=100)
     random.seed(fix_seed)
 
     category = st.selectbox("Select word type", ['All'] + list(Words.__members__.keys()))
@@ -165,7 +170,6 @@ if __name__ == "__main__":
 
         # To Ger
         for k, v in test_answers_to_ger.items():
-            # st.info(f"{k=}, {v=}")
             test_results[k]["to_ger"] = True if v.lower() == k.lower() else False
 
         st.info(f"Test results:")
@@ -206,6 +210,17 @@ if __name__ == "__main__":
             meaning = st.text_input("meaning")
             gender = st.selectbox("Gender", Gender.__members__.keys())
             cls = st.selectbox("Class", Words.__members__.keys())
+
+            cols_verb = st.columns([3,3])
+            ich = cols_verb[0].text_input("ich (Verbs only)", None)
+            du = cols_verb[0].text_input("du (Verbs only)", None)
+            er = cols_verb[0].text_input("er (Verbs only)", None)
+
+            wir = cols_verb[1].text_input("wir (Verbs only)", None)
+            ihr = cols_verb[1].text_input("ihr (Verbs only)", None)
+            sie = cols_verb[1].text_input("sie (Verbs only)", None)
+
+
             example_ger = st.text_input("Example in German", "---")
             example_eng = st.text_input("Example in English", "---")
             tag_1 = st.selectbox("Tag 1", ["NA"]+[t for t in Tags.__members__.keys()], index=0)
@@ -234,6 +249,14 @@ if __name__ == "__main__":
                     "to_ger": {datetime.datetime.now().isoformat(): True},
                     "to_eng": {datetime.datetime.now().isoformat(): True},
                 },
+                "verb_forms": {
+                    "ich": ich,
+                    "du": du,
+                    "er": er,
+                    "wir": wir,
+                    "ihr": ihr,
+                    "sie": sie,
+                },
             }
 
             pm.update_all(json)
@@ -250,6 +273,16 @@ if __name__ == "__main__":
             meaning = st.text_input("meaning", data_json["meaning"])
             gender = st.selectbox("Gender", Gender.__members__.keys(), list(Gender.__members__.keys()).index(data_json["gender"]))
             cls = st.selectbox("Class", Words.__members__.keys(), list(Words.__members__.keys()).index(data_json["cls"]))
+
+            cols_verb = st.columns([3,3])
+            ich = cols_verb[0].text_input("ich (Verbs only)", data_json["verb_forms"]["ich"])
+            du = cols_verb[0].text_input("du (Verbs only)", data_json["verb_forms"]["du"])
+            er = cols_verb[0].text_input("er (Verbs only)", data_json["verb_forms"]["er"])
+
+            wir = cols_verb[1].text_input("wir (Verbs only)", data_json["verb_forms"]["wir"])
+            ihr = cols_verb[1].text_input("ihr (Verbs only)", data_json["verb_forms"]["ihr"])
+            sie = cols_verb[1].text_input("sie (Verbs only)", data_json["verb_forms"]["sie"])
+
             example_ger = st.text_input("Example in German", list(data_json["example"].keys())[0])
             example_eng = st.text_input("Example in English", list(data_json["example"].values())[0])
             tag_1 = st.selectbox("Tag 1", list(Tags.__members__.keys()), list(Tags.__members__.keys()).index(data_json["tags"][0]))
@@ -278,6 +311,14 @@ if __name__ == "__main__":
                     "to_ger": {datetime.datetime.now().isoformat(): True},
                     "to_eng": {datetime.datetime.now().isoformat(): True},
                 },
+                "verb_forms": {
+                    "ich": ich,
+                    "du": du,
+                    "er": er,
+                    "wir": wir,
+                    "ihr": ihr,
+                    "sie": sie,
+                },
             }
 
             pm.update_all(json)
@@ -285,9 +326,5 @@ if __name__ == "__main__":
 
     else:
         st.error(f"Undefined mode: {mode}")
-
-
-
-
 
 

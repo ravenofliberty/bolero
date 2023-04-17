@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -17,7 +18,7 @@ class Tags(Enum):
     Family = 3
 
 
-class DefinitieArticle(Enum):
+class DefiniteArticle(Enum):
     der = 1
     die = 2
     das = 3
@@ -43,7 +44,37 @@ class Gender(Enum):
 
 
 ARTICLE_MAPPING_NOMINATIVE = {
-    Gender.masculinum: {'definite': DefinitieArticle.der, 'indefinite': IndefiniteArticle.ein},
-    Gender.femininum: {'definite': DefinitieArticle.die, 'indefinite': IndefiniteArticle.eine},
-    Gender.neutrum: {'definite': DefinitieArticle.das, 'indefinite': IndefiniteArticle.ein},
+    Gender.masculinum: {'definite': DefiniteArticle.der, 'indefinite': IndefiniteArticle.ein},
+    Gender.femininum: {'definite': DefiniteArticle.die, 'indefinite': IndefiniteArticle.eine},
+    Gender.neutrum: {'definite': DefiniteArticle.das, 'indefinite': IndefiniteArticle.ein},
 }
+
+
+@dataclass
+class VerbForms:
+    ich: str
+    du: str
+    er: str
+    wir: str
+    ihr: str
+    sie: str
+
+    @classmethod
+    def get_persons(cls):
+        return ["ich", "du", "er", "wir", "ihr", "sie"]
+
+    def to_json(self):
+        return {
+            "ich": self.ich,
+            "du": self.du,
+            "er": self.er,
+            "wir": self.wir,
+            "ihr": self.ihr,
+            "sie": self.sie
+        }
+
+    @classmethod
+    def from_json(cls, json):
+        for k in json.keys():
+            assert k in cls.get_persons(), f"Unknown person: {k}"
+        return VerbForms(**json)
