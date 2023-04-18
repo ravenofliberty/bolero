@@ -16,6 +16,8 @@ class Tags(Enum):
     Character = 1
     Color = 2
     Family = 3
+    Politics = 4
+    Economy = 5
 
 
 class DefiniteArticle(Enum):

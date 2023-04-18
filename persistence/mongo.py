@@ -132,8 +132,8 @@ class PersistenceManager:
 
     def update_verb_forms(self, word, forms: dict):
         """ Verb only """
-        cls = self.pull_cls(word=word)
-        assert cls == Words.Verb, f"You can only update forms for Verbs, not {cls}"
+        # cls = self.pull_cls(word=word)
+        # assert cls == Words.Verb, f"You can only update forms for Verbs, not {cls}"
         self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"verb_forms": forms}}, upsert=True)
 
     def update_all(self, json):
