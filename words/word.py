@@ -18,7 +18,6 @@ Word object handles all states. Persistence manager (PM) only pulls and pushes u
 Word object only interacts with the DB via PM. 
 """
 
-
 class Word:
     def __init__(
             self,
@@ -32,6 +31,7 @@ class Word:
             practice_data: Dict = {},
             verb_forms: VerbForms = None,
             offline_mode=True,
+            creation_date: datetime.date = None,
     ):
         self.word = word
 
@@ -45,6 +45,7 @@ class Word:
         self.see_also = see_also or self.persistence_manager.pull_see_also(word, data)
         self.practice_data = practice_data or self.persistence_manager.pull_practice_data(word, data)
         self.verb_forms = verb_forms or self.persistence_manager.pull_verb_forms(word, data)
+        self.creation_date = creation_date or self.persistence_manager.pull_creation_date(word, data)
 
     def to_json(self):
         res = {}
@@ -64,6 +65,7 @@ class Word:
             json["verb_forms"] = VerbForms(**json["verb_forms"])
         json["gender"] = Gender[json["gender"]]
         json["tags"] = [Tags[t] for t in json["tags"]]
+        json["creation_date"] = datetime.date.fromisoformat(json["creation_date"])
 
         module = importlib.import_module(f"words.{json['cls'].lower()}")
         target_cls = getattr(module,json['cls'].lower().capitalize())

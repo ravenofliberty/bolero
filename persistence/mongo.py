@@ -40,8 +40,8 @@ class PersistenceManager:
                 "to_ger": {datetime.datetime.now().isoformat(): True},
                 "to_eng": {datetime.datetime.now().isoformat(): True},
             },
+            'creation_date': datetime.date(2023,4,10).isoformat(),
         }
-
     """
 
     def __init__(
@@ -59,7 +59,7 @@ class PersistenceManager:
         if len(data) != 0:
             assert len(data) == 1, f"Found multiple data entries for word {word}: {data}"
             doc = data[0]
-            for key in ["word", "meaning", "gender", "cls", "example", "tags", "see_also", "practice_data", "verb_forms"]:
+            for key in ["word", "meaning", "gender", "cls", "example", "tags", "see_also", "practice_data", "verb_forms", "creation_date"]:
                 assert key in doc.keys(), f"{key=} is missing from {doc=}"
             return data[0]
         else:
@@ -101,6 +101,10 @@ class PersistenceManager:
         assert cls == Words.Verb, f"Verb forms are only available for verbs, not {cls}"
         return VerbForms(data.get("verb_forms", {person: None for person in VerbForms.get_persons()}))
 
+    def pull_creation_date(self, word, data=None):
+        data = data or self.pull_data(word)
+        return datetime.date.fromisoformat(data.get("creation_date", None))
+
     ###############
     # Updating data
     ###############
@@ -131,10 +135,11 @@ class PersistenceManager:
         self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"practice_data": practice_data}}, upsert=True)
 
     def update_verb_forms(self, word, forms: dict):
-        """ Verb only """
-        # cls = self.pull_cls(word=word)
-        # assert cls == Words.Verb, f"You can only update forms for Verbs, not {cls}"
+        """ Verb only, rest get empty dicts"""
         self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"verb_forms": forms}}, upsert=True)
+
+    def update_creation_date(self, word, creation_date: str):
+        self.client.bolero_data.update_one({"word": ignore_case(word)}, {"$set": {"creation_date": creation_date}}, upsert=True)
 
     def update_all(self, json):
         """ PersistenceManager.update_all(Word.to_json()) """
@@ -155,3 +160,4 @@ class PersistenceManager:
         self.update_see_also(word, json["see_also"])
         self.update_practice_data(word, json["practice_data"])
         self.update_verb_forms(word, json["verb_forms"])
+        self.update_creation_date(word, json["creation_date"])
