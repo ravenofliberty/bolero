@@ -11,6 +11,7 @@ from words.word_metadata import (
     Gender, Tags, Words, DefiniteArticle, ARTICLE_MAPPING_NOMINATIVE, VerbForms
 )
 from persistence.mongo import PersistenceManager
+from bolero_apps.apps_utils import get_figure
 
 
 def get_random_n_from_list(n, l):
@@ -43,6 +44,7 @@ def get_data(pm=None):
         lambda x: [v for v in x if v != "NA"] if any([v != "NA" for v in x]) else "---")
     overview_df["see_also"] = overview_df["see_also"].apply(
         lambda x: [v for v in x if v != "NA"] if any([v != "NA" for v in x]) else "---")
+    overview_df["creation_date"] = overview_df["creation_date"].apply(lambda x: datetime.date.fromisoformat(x))
     overview_df = overview_df.set_index('word')
 
     # Practice DF
@@ -54,13 +56,13 @@ def get_data(pm=None):
 
     stats = {}
     for word, r in practice_df.T.to_dict().items():
-        right_to_ger = sum(pd.Series(r['to_ger']))
-        total_to_ger = len(pd.Series(r['to_ger']))
+        right_to_ger = sum(pd.Series(r['to_ger'], dtype=float))
+        total_to_ger = len(pd.Series(r['to_ger'], dtype=float))
         fail_to_ger = total_to_ger - right_to_ger
         perc_to_ger = right_to_ger / total_to_ger if total_to_ger != 0 else 0
 
-        right_to_eng = sum(pd.Series(r['to_eng']))
-        total_to_eng = len(pd.Series(r['to_eng']))
+        right_to_eng = sum(pd.Series(r['to_eng'], dtype=float))
+        total_to_eng = len(pd.Series(r['to_eng'], dtype=float))
         fail_to_eng = total_to_eng - right_to_eng
         perc_to_eng = right_to_eng / total_to_eng if total_to_eng != 0 else 0
 
@@ -91,7 +93,7 @@ def get_data(pm=None):
 
 
 def performance_review_raport(stats_df, overview_df, practice_df):
-    labels = 'Success (To Ger)', 'Fail (To Ger)', 'Success (To Eng)', 'Fail (To Eng)'
+    labels = 'Success (To Eng)', 'Fail (To Eng)', 'Success (To Ger)', 'Fail (To Ger)'
     colors = ['#3D8DF5', '#ADCCF7', '#16A163', '#C7EBD1']
     explode = [0, 0, 0, 0]
     cols = st.columns([3, 3, 3])
@@ -108,8 +110,8 @@ def performance_review_raport(stats_df, overview_df, practice_df):
                 _stats_df['fail_to_ger'],
             ]
             fig1, ax1 = plt.subplots(figsize=(5, 5))
-            ax1.title.set_text(cls)
-            ax1.pie(sizes, explode=explode, labels=labels, autopct="%1.1f%%", shadow=False, startangle=90, colors=colors)
+            ax1.set_title(cls, fontweight="bold", size=16)
+            ax1.pie(sizes, explode=explode, labels=labels, autopct="%1.1f%%", shadow=False, startangle=90, colors=colors, textprops={'fontsize': 14})
             ax1.axis("equal")
             cols[count].pyplot(fig1)
         count += 1
@@ -126,23 +128,40 @@ def performance_review_raport(stats_df, overview_df, practice_df):
                 else:
                     by_date_to_ger[d]["Fail"] += 1
 
-    by_date_to_eng = {}
-    for row in practice_df.iterrows():
-        for _d, res in row[1]['to_eng'].items():
-            d = _d.date()
-            if by_date_to_eng.get(d, None) is None:
-                by_date_to_eng[d] = {"Success": 1, "Fail": 0} if res else {"Success": 0, "Fail": 1}
-            else:
-                if res:
-                    by_date_to_eng[d]["Success"] += 1
-                else:
-                    by_date_to_eng[d]["Fail"] += 1
+    start_date = datetime.date(2023,4,1)
 
-    col1, col2 = st.columns([3, 3])
-    col1.markdown("**english -> german**")
-    col1.line_chart(pd.DataFrame(by_date_to_ger).T)
-    col2.markdown("**german -> english**")
-    col2.line_chart(pd.DataFrame(by_date_to_eng).T)
+    entry = {
+        "success_to_eng": 0,
+        "failure_to_eng": 0,
+        "success_to_ger": 0,
+        "failure_to_ger": 0,
+    }
+    by_date_to_language = {d.date(): {k:v for k,v in entry.items()} for d in pd.date_range(start_date, datetime.date.today())}
+
+    for direction in ['to_eng', 'to_ger']:
+        for key, row in practice_df.iterrows():
+            for _d, res in row[direction].items():
+                d = _d.date()
+                if res:
+                    by_date_to_language[d][f"success_{direction}"] += 1
+                else:
+                    by_date_to_language[d][f"failure_{direction}"] += 1
+
+    by_date_to_language_df = pd.DataFrame(by_date_to_language).T
+    by_date_to_language_df = by_date_to_language_df.loc[by_date_to_language_df.sum(axis=1) != 0]
+
+    new_words_added = overview_df.groupby(by='creation_date').count()['cls']
+    by_date_to_language_df["new_words_added"] = new_words_added
+
+    st.pyplot(get_figure(
+        by_date_to_language_df,
+        figsize=(10,3),
+        second_axis=True,
+        second_axis_columns=["new_words_added"],
+        colors_axis_1=colors,
+        colors_axis_2=['purple']
+    )
+    )
 
     st.markdown("**Last failed words**")
     last_fails = pd.concat([
@@ -259,11 +278,11 @@ def practice_section(data_df, pm, worst_words, verbose=False):
 
             # To eng
             if res['to_eng'] is not None:
-                practice_data_result['to_eng'][datetime.datetime(2023,4,15).isoformat()] = res['to_eng']
+                practice_data_result['to_eng'][(datetime.datetime.now() - datetime.timedelta(days=5)).isoformat()] = res['to_eng']
 
             # To ger
             if res['to_ger'] is not None:
-                practice_data_result['to_ger'][datetime.datetime(2023,4,15).isoformat()] = res['to_ger']
+                practice_data_result['to_ger'][(datetime.datetime.now() - datetime.timedelta(days=5)).isoformat()] = res['to_ger']
 
             pm.update_practice_data(word, practice_data_result)
 
@@ -326,6 +345,7 @@ def edit_section(data_df, pm):
                     "ihr": ihr,
                     "sie": sie,
                 },
+                "creation_date": datetime.date.today().isoformat()
             }
 
             pm.update_all(json)
@@ -365,6 +385,8 @@ def edit_section(data_df, pm):
             see_also_1 = st.text_input("See Also 1", data_json["see_also"][0])
             see_also_2 = st.text_input("See Also 2", data_json["see_also"][1])
 
+            creation_date = st.date_input("Creation date", datetime.date.fromisoformat(data_json["creation_date"])).isoformat()
+
             submitted_update = st.form_submit_button("Update word")
 
         example = {"---": "---"}
@@ -393,6 +415,7 @@ def edit_section(data_df, pm):
                     "ihr": ihr,
                     "sie": sie,
                 },
+                "creation_date": creation_date,
             }
 
             pm.update_all(json)
